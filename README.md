@@ -1,4 +1,4 @@
-# STDA
+# STDAN
 Spatio-Temporal Distortion Aware Omnidirectional Video Super-Resolution
 
 The proposed ODV-SR test dataset: https://drive.google.com/drive/folders/1jhrDFtKBBpvRjqOhLtVXil7zdJ0vV0kT?usp=sharing
