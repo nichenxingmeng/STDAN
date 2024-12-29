@@ -5,4 +5,4 @@ The proposed ODV-SR train dataset consists of two parts, 210 sequences following
 
 The proposed ODV-SR test dataset: https://drive.google.com/drive/folders/1jhrDFtKBBpvRjqOhLtVXil7zdJ0vV0kT?usp=sharing
 
-The paper is still unpublished, for the details of the proposed model, please concat: anhongyu22@mails.ucas.ac.cn
+The paper is still unpublished, for the details of the proposed model, please contact: anhongyu22@mails.ucas.ac.cn
