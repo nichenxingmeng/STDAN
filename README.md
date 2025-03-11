@@ -1,8 +1,6 @@
 # Spatio-Temporal Distortion Aware Omnidirectional Video Super-Resolution (STDAN)
 
-<video width="720" height="360" controls>
-    <source src="assets/0.mp4" type="video/mp4">
-</video>
+
 
 https://arxiv.org/pdf/2410.11506
 
