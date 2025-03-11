@@ -1,5 +1,9 @@
 # Spatio-Temporal Distortion Aware Omnidirectional Video Super-Resolution (STDAN)
 
+<video width="720" height="360" controls>
+    <source src="assets/0.mp4" type="video/mp4">
+</video>
+
 https://arxiv.org/pdf/2410.11506
 
 The proposed ODV-SR train dataset consists of two parts, 210 sequences following ODV360: https://github.com/360SR/360SR-Challenge and 70 sequences collected by us, Baidu Drive: https://pan.baidu.com/s/1SEREx1hjqFHXQ0lTmmxGow, access code: tiw7
