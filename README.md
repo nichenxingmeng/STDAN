@@ -155,11 +155,14 @@ star those repositories.
 ## Citation
 
 ```bibtex
-@inproceedings{an2026stdan,
-  title     = {Spatio-Temporal Distortion Aware Omnidirectional Video Super-Resolution},
-  author    = {An, Hongyu and Zhang, Xinfeng and Zhao, Shijie and Zhang, Li and Xiong, Ruiqin},
-  booktitle = {Proceedings of the AAAI Conference on Artificial Intelligence},
-  year      = {2026}
+@inproceedings{an2026spatio,
+  title={Spatio-temporal distortion aware omnidirectional video super-resolution},
+  author={An, Hongyu and Zhang, Xinfeng and Zhao, Shijie and Zhang, Li and Xiong, Ruiqin},
+  booktitle={Proceedings of the AAAI Conference on Artificial Intelligence},
+  volume={40},
+  number={4},
+  pages={2309--2317},
+  year={2026}
 }
 ```
 

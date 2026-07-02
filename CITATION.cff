@@ -27,6 +27,10 @@ preferred-citation:
     - family-names: Xiong
       given-names: Ruiqin
   collection-title: "Proceedings of the AAAI Conference on Artificial Intelligence"
+  volume: 40
+  issue: 4
+  start: 2309
+  end: 2317
   year: 2026
 license: Apache-2.0
 references:
