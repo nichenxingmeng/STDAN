@@ -128,7 +128,7 @@ The pretrained checkpoint `stdan.ckpt` is **not tracked in git** (~330 MB).
 Download it separately and place it at the repository root, or point the command at
 your own path.
 
-> **Download:** TODO — add link (Google Drive / Dropbox / GitHub Release).
+> **Download:** [Google Drive](https://drive.google.com/file/d/16nYbqbC3cyNkx6y22kOuLFuEcSPjjpvL/view?usp=sharing)
 
 ## Evaluation (WS-PSNR / WS-SSIM)
 
