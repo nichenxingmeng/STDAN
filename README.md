@@ -166,10 +166,11 @@ star those repositories.
 Please also cite BasicVSR++ and MMEditing:
 
 ```bibtex
-@inproceedings{chan2022basicvsrpp,
-  author    = {Chan, Kelvin C.K. and Zhou, Shangchen and Xu, Xiangyu and Loy, Chen Change},
-  title     = {{BasicVSR++}: Improving Video Super-Resolution with Enhanced Propagation and Alignment},
-  booktitle = {IEEE Conference on Computer Vision and Pattern Recognition},
-  year      = {2022}
+@inproceedings{chan2022basicvsr++,
+  title={Basicvsr++: Improving video super-resolution with enhanced propagation and alignment},
+  author={Chan, Kelvin CK and Zhou, Shangchen and Xu, Xiangyu and Loy, Chen Change},
+  booktitle={Proceedings of the IEEE/CVF conference on computer vision and pattern recognition},
+  pages={5972--5981},
+  year={2022}
 }
 ```
