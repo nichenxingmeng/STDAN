@@ -1,0 +1,37 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the paper below."
+title: "STDAN: Spatio-Temporal Distortion Aware Omnidirectional Video Super-Resolution"
+authors:
+  - family-names: An
+    given-names: Hongyu
+  - family-names: Zhang
+    given-names: Xinfeng
+  - family-names: Zhao
+    given-names: Shijie
+  - family-names: Zhang
+    given-names: Li
+  - family-names: Xiong
+    given-names: Ruiqin
+preferred-citation:
+  type: conference-paper
+  title: "Spatio-Temporal Distortion Aware Omnidirectional Video Super-Resolution"
+  authors:
+    - family-names: An
+      given-names: Hongyu
+    - family-names: Zhang
+      given-names: Xinfeng
+    - family-names: Zhao
+      given-names: Shijie
+    - family-names: Zhang
+      given-names: Li
+    - family-names: Xiong
+      given-names: Ruiqin
+  collection-title: "Proceedings of the AAAI Conference on Artificial Intelligence"
+  year: 2026
+license: Apache-2.0
+references:
+  - type: software
+    title: "MMEditing: OpenMMLab Image and Video Editing Toolbox"
+    authors:
+      - name: "MMEditing Contributors"
+    url: "https://github.com/open-mmlab/mmediting"

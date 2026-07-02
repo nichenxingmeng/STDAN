@@ -1,0 +1,35 @@
+# Byte-compiled / optimized
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# Model weights / checkpoints (download separately)
+*.pth
+*.pt
+*.ckpt
+
+# Training artifacts
+work_dirs/
+results/
+*.log
+log_*.txt
+
+# Datasets & demo inputs
+data/
+LR_BIx4/
+
+# Paper PDF (link it in the README instead of committing the binary)
+*.pdf
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+.DS_Store

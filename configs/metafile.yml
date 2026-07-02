@@ -1,0 +1,18 @@
+Collections:
+- Metadata:
+    Architecture:
+    - STDAN
+    - BasicVSR++
+  Name: STDAN
+  Paper:
+  - https://arxiv.org/abs/2104.13371
+  README: configs/README.md
+Models:
+- Config: configs/stdan_odi_360vsr.py
+  In Collection: STDAN
+  Metadata:
+    Training Data: 360Video
+  Name: stdan_odi_360vsr
+  Results:
+  - Dataset: 360Video
+    Task: Video Super-Resolution
