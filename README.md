@@ -99,6 +99,11 @@ python tools/rename.py --directory data/360Video/training/LR_BIx4
 
 ### Saliency maps
 
+> **Training only.** The saliency maps are used *only* by the LSA loss during
+> training. They are **not** needed for inference — the LSA weighting is
+> precomputed offline and adds zero cost at test time, so you do not need saliency
+> maps to run the demo / evaluation.
+
 The LSA loss reads one grayscale saliency map per HR frame. The loader
 ([`LoadImageFromFileList_saliency`](mmedit/datasets/pipelines/loading.py)) maps an
 HR frame path to its saliency map via the `saliency_folder` and `path_split_token`
@@ -106,7 +111,22 @@ config fields: the part of the HR path after `path_split_token` (default `'HR'`)
 appended to `saliency_folder`, so `.../HR/0000/0000.png` →
 `{saliency_folder}/0000/0000.png`.
 
-> **Note:** The procedure for generating the saliency maps will be documented here. (TODO)
+**How the maps are generated (offline, once, before training).** Following the
+paper, each HR frame's saliency map is estimated with an off-the-shelf 360°
+saliency predictor and saved as a grayscale image:
+
+1. Project the ERP frame to a **cubemap** (6 faces).
+2. Run the **SalEMA** 360° video saliency predictor
+   ([Linardos et al. 2019](https://github.com/Linardos/SalEMA); the paper uses a
+   two-branch variant that combines a global-context attention branch with a
+   local-viewpoint projection branch, multiplying the two to obtain the
+   saliency-oriented weight `W_sal(u, v)`).
+3. **Inverse-project** the per-face saliency back to ERP and save it as a grayscale
+   PNG mirroring the HR folder layout, under `saliency_folder`.
+
+This is a preprocessing step done once over the training set; it is independent of
+this repository (it reuses SalEMA), so no saliency-generation script is bundled
+here. Point `saliency_folder` in the config at the resulting maps.
 
 ## Training
 
