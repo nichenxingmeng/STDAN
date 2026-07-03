@@ -55,13 +55,19 @@ rather than files literally named STCA/IMFR):
 
 > **On the OPE (omni-positional encoding) channel.** The STCA module needs a
 > **4-channel LQ input** — RGB plus a single-channel OPE map that the backbone reads
-> as `condition = lqs[:, :, 3]`. The OPE maps (cosine-based vertical PE + sinusoidal
-> horizontal PE, per the paper) are **precomputed offline** and stored the same way
-> as the frames; they are loaded and concatenated as the 4th LQ channel by
-> [`LoadImageFromFileList_ope`](mmedit/datasets/pipelines/loading.py), which is
-> already referenced in the config's pipelines. Put the maps under
-> `data/360Video/ope/` mirroring the LR folder layout (see below). **TODO: the
-> offline OPE-generation script will be added here.**
+> as `condition = lqs[:, :, 3]`. The OPE map is the per-latitude ERP cosine weight
+> (the same weighting used by WS-PSNR), precomputed offline with
+> [`tools/gen_ope.py`](tools/gen_ope.py) and stored as grayscale PNGs mirroring the
+> LR folder layout under `data/360Video/ope/`. They are loaded and concatenated as
+> the 4th LQ channel by [`LoadImageFromFileList_ope`](mmedit/datasets/pipelines/loading.py),
+> already referenced in the config's pipelines. Unlike the training-only saliency
+> maps, **the OPE maps are needed for both training and inference** (STCA uses them
+> in the forward pass). Generate them once with:
+>
+> ```bash
+> python tools/gen_ope.py --lr-dir data/360Video/training/LR_BIx4 --out-dir data/360Video/ope
+> python tools/gen_ope.py --lr-dir data/360Video/testing/LR       --out-dir data/360Video/ope
+> ```
 
 ## Installation
 
