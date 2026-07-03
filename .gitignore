@@ -10,6 +10,11 @@ dist/
 .eggs/
 *.egg
 
+# Virtual environments
+.venv*/
+venv/
+env/
+
 # Model weights / checkpoints (download separately)
 *.pth
 *.pt
