@@ -13,13 +13,6 @@ from mmedit.utils import modify_args
 
 VIDEO_EXTENSIONS = ('.mp4', '.mov')
 
-import torchvision.models
-import torch
-from thop import profile
-from thop import clever_format
-import torchsummary
-import time
-
 def parse_args():
     modify_args()
     parser = argparse.ArgumentParser(description='Restoration demo')
@@ -64,20 +57,10 @@ def main():
 
     model = init_model(
         args.config, args.checkpoint, device=torch.device('cuda', args.device))
-    '''
-    device = torch.device('cuda')
-    model.to(device)
-    myinput = torch.zeros((1, 6, 4, 270, 540)).to(device)
-    flops, params = profile(model.to(device), inputs=(myinput,))
-    flops, params = clever_format([flops, params], "%.3f")
-    print(flops, params)
-    '''
-    start = time.perf_counter()
+
     output = restoration_video_inference(model, args.input_dir,
                                          args.window_size, args.start_idx,
                                          args.filename_tmpl, args.max_seq_len)
-    elapsed = time.perf_counter() - start
-    print(f"{elapsed:.8f}s")
 
     file_extension = os.path.splitext(args.output_dir)[1]
     if file_extension in VIDEO_EXTENSIONS:  # save as video

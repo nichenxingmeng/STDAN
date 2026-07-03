@@ -142,13 +142,33 @@ sh tools/dist_train.sh configs/stdan_odi_360vsr.py ${NGPUS}
 
 ## Inference
 
-```bash
-python demo/restoration_video_demo.py \
-    configs/stdan_odi_360vsr.py \
-    stdan.ckpt \
-    ${INPUT_PATH} \
-    ${OUTPUT_PATH}
-```
+Inference takes a **folder of frames** (`0000.png`, `0001.png`, ...). Encoded
+video files (`.mp4`/`.mov`) are not supported, because STDAN needs the OPE channel,
+which is loaded per-frame from disk.
+
+1. **Generate the OPE maps** for your input frames (once):
+
+   ```bash
+   python tools/gen_ope.py --lr-dir ${INPUT_PARENT} --out-dir data/360Video/ope
+   ```
+
+   `${INPUT_PARENT}` is the folder that *contains* your clip sub-folder(s); the OPE
+   loader looks maps up by `{clip}/{frame}.png` under `ope_folder`
+   (`data/360Video/ope` by default, set in the config's `demo_pipeline`).
+
+2. **Run the model:**
+
+   ```bash
+   python demo/restoration_video_demo.py \
+       configs/stdan_odi_360vsr.py \
+       stdan.ckpt \
+       ${INPUT_PATH} \
+       ${OUTPUT_PATH}
+   ```
+
+   `${INPUT_PATH}` is the clip folder; `${OUTPUT_PATH}` is an output folder (or an
+   `.mp4` path to write a video). Use `--max-seq-len` to bound memory on long
+   sequences, and (if you extended the demo) `--tile-size` for very large frames.
 
 The pretrained checkpoint `stdan.ckpt` is **not tracked in git** (~330 MB).
 Download it separately and place it at the repository root, or point the command at

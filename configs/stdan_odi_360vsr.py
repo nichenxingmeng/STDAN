@@ -66,7 +66,8 @@ test_pipeline = [
     dict(
         type='LoadImageFromFileList_ope',
         ope_folder='data/360Video/ope',
-        path_split_token='LR',
+        # path_split_token omitted -> use {clip}/{frame}.png to locate the
+        # OPE map (robust to arbitrary input dir names at test/demo time).
         io_backend='disk',
         key='lq',
         channel_order='rgb'),
@@ -88,7 +89,8 @@ demo_pipeline = [
     dict(
         type='LoadImageFromFileList_ope',
         ope_folder='data/360Video/ope',
-        path_split_token='LR',
+        # path_split_token omitted -> use {clip}/{frame}.png to locate the
+        # OPE map (robust to arbitrary input dir names at test/demo time).
         io_backend='disk',
         key='lq',
         channel_order='rgb'),

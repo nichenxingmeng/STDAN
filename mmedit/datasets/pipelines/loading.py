@@ -259,12 +259,16 @@ class LoadImageFromFileList_ope(LoadImageFromFile):
         kwargs (dict): Args for file client.
     """
 
-    def __init__(self, ope_folder, path_split_token='LR', **kwargs):
+    def __init__(self, ope_folder, path_split_token=None, **kwargs):
         super().__init__(**kwargs)
         if ope_folder is None:
             raise ValueError(
                 '`ope_folder` must be provided for LoadImageFromFileList_ope.')
         self.ope_folder = str(ope_folder)
+        # If `path_split_token` is given, the OPE path is
+        # `{ope_folder}/{part of the frame path after the token}`. If it is
+        # None, the last two path components (`{clip}/{frame}.png`) are used
+        # instead — robust to arbitrary input directory names at inference.
         self.path_split_token = path_split_token
 
     def __call__(self, results):
@@ -291,7 +295,13 @@ class LoadImageFromFileList_ope(LoadImageFromFile):
         if self.save_original_img:
             ori_imgs = []
         for filepath in filepaths:
-            rel_path = filepath.split(self.path_split_token)[-1].lstrip('/\\')
+            if self.path_split_token is not None:
+                rel_path = filepath.split(
+                    self.path_split_token)[-1].lstrip('/\\')
+            else:
+                # last two components: {clip}/{frame}.png
+                clip = osp.basename(osp.dirname(filepath))
+                rel_path = osp.join(clip, osp.basename(filepath))
             opepath = osp.join(self.ope_folder, rel_path)
             img_bytes = self.file_client.get(filepath)
             img = mmcv.imfrombytes(

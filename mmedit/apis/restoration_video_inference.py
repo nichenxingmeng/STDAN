@@ -1,5 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import glob
+import math
 import os.path as osp
 import re
 from functools import reduce
@@ -10,11 +11,8 @@ import torch
 
 from mmedit.datasets.pipelines import Compose
 
-import math
-
 VIDEO_EXTENSIONS = ('.mp4', '.mov')
 
-import time
 
 def pad_sequence(data, window_size):
     padding = window_size // 2
@@ -28,30 +26,84 @@ def pad_sequence(data, window_size):
     return data
 
 
+def _forward_tiled(model, lq, device, tile_size, tile_pad):
+    """Run the model tile-by-tile and stitch the ×4 SR result.
+
+    STDAN's IMFR head emits 9 channels per frame (interlaced prev/cur/next
+    RGB); the restored current frame is channels 3:6. Tiling keeps the peak
+    memory bounded for high-resolution 360 frames. ``tile_size <= 0`` (or a
+    tile larger than the frame) processes the whole frame in one pass.
+    """
+    batch, length, channel, height, width = lq.shape
+    out = lq.new_zeros((batch, length, 9, height * 4, width * 4)).cpu()
+
+    if tile_size is None or tile_size <= 0:
+        tiles_x = tiles_y = 1
+        tile_size = max(height, width)
+    else:
+        tiles_x = math.ceil(width / tile_size)
+        tiles_y = math.ceil(height / tile_size)
+
+    for y in range(tiles_y):
+        for x in range(tiles_x):
+            in_sx = x * tile_size
+            in_ex = min(in_sx + tile_size, width)
+            in_sy = y * tile_size
+            in_ey = min(in_sy + tile_size, height)
+
+            # padded input tile
+            in_sx_pad = max(in_sx - tile_pad, 0)
+            in_ex_pad = min(in_ex + tile_pad, width)
+            in_sy_pad = max(in_sy - tile_pad, 0)
+            in_ey_pad = min(in_ey + tile_pad, height)
+
+            tile_w = in_ex - in_sx
+            tile_h = in_ey - in_sy
+
+            in_tile = lq[:, :, :, in_sy_pad:in_ey_pad, in_sx_pad:in_ex_pad]
+            out_tile = model(lq=in_tile.to(device), test_mode=True)['output']
+            out_tile = out_tile.cpu()
+
+            # place the unpadded region into the full-size output
+            osx, oex = in_sx * 4, in_ex * 4
+            osy, oey = in_sy * 4, in_ey * 4
+            tsx = (in_sx - in_sx_pad) * 4
+            tsy = (in_sy - in_sy_pad) * 4
+            out[:, :, :, osy:oey, osx:oex] = out_tile[
+                :, :, :, tsy:tsy + tile_h * 4, tsx:tsx + tile_w * 4]
+
+    return out
+
+
 def restoration_video_inference(model,
                                 img_dir,
                                 window_size,
                                 start_idx,
                                 filename_tmpl,
-                                max_seq_len=None):
-    """Inference image with the model.
+                                max_seq_len=None,
+                                tile_size=0,
+                                tile_pad=32):
+    """Inference a video/image sequence with the model.
 
     Args:
         model (nn.Module): The loaded model.
-        img_dir (str): Directory of the input video.
+        img_dir (str): Directory of the input frames (one image per frame).
+            Video files (.mp4/.mov) are not supported by STDAN because the
+            model needs the precomputed OPE channel, which is only available
+            for on-disk frames via the data pipeline.
         window_size (int): The window size used in sliding-window framework.
-            This value should be set according to the settings of the network.
-            A value smaller than 0 means using recurrent framework.
-        start_idx (int): The index corresponds to the first frame in the
-            sequence.
+            A value <= 0 means using the recurrent framework.
+        start_idx (int): The index of the first frame in the sequence.
         filename_tmpl (str): Template for file name.
         max_seq_len (int | None): The maximum sequence length that the model
-            processes. If the sequence length is larger than this number,
-            the sequence is split into multiple segments. If it is None,
-            the entire sequence is processed at once.
+            processes at once. If the sequence is longer, it is split into
+            segments. None processes the whole sequence at once.
+        tile_size (int): Spatial tile size for the ×4 forward pass. 0 (or a
+            value larger than the frame) processes the whole frame at once.
+        tile_pad (int): Padding around each tile to avoid seams.
 
     Returns:
-        Tensor: The predicted restoration result.
+        Tensor: The predicted restoration result, shape (1, T, 3, 4H, 4W).
     """
 
     device = next(model.parameters()).device  # model device
@@ -64,185 +116,65 @@ def restoration_video_inference(model,
     else:
         test_pipeline = model.cfg.val_pipeline
 
-    # check if the input is a video
+    # STDAN needs the OPE channel loaded from disk, so only frame folders
+    # (not encoded video files) are supported.
     file_extension = osp.splitext(img_dir)[1]
     if file_extension in VIDEO_EXTENSIONS:
-        video_reader = mmcv.VideoReader(img_dir)
-        # load the images
-        data = dict(lq=[], lq_path=None, key=img_dir)
-        for frame in video_reader:
-            data['lq'].append(np.flip(frame, axis=2))
+        raise ValueError(
+            'Video-file input is not supported: STDAN requires the '
+            'precomputed OPE channel, which is loaded per-frame from disk. '
+            'Please extract the video to a folder of frames (and generate '
+            'the matching OPE maps with tools/gen_ope.py) first.')
 
-        # remove the data loading pipeline
-        tmp_pipeline = []
-        for pipeline in test_pipeline:
-            if pipeline['type'] not in [
-                    'GenerateSegmentIndices', 'LoadImageFromFileList'
-            ]:
-                tmp_pipeline.append(pipeline)
-        test_pipeline = tmp_pipeline
-    else:
-        # the first element in the pipeline must be 'GenerateSegmentIndices'
-        if test_pipeline[0]['type'] != 'GenerateSegmentIndices':
-            raise TypeError('The first element in the pipeline must be '
-                            f'"GenerateSegmentIndices", but got '
-                            f'"{test_pipeline[0]["type"]}".')
+    # the first element in the pipeline must be 'GenerateSegmentIndices'
+    if test_pipeline[0]['type'] != 'GenerateSegmentIndices':
+        raise TypeError('The first element in the pipeline must be '
+                        f'"GenerateSegmentIndices", but got '
+                        f'"{test_pipeline[0]["type"]}".')
 
-        # specify start_idx and filename_tmpl
-        test_pipeline[0]['start_idx'] = start_idx
-        test_pipeline[0]['filename_tmpl'] = filename_tmpl
+    # specify start_idx and filename_tmpl
+    test_pipeline[0]['start_idx'] = start_idx
+    test_pipeline[0]['filename_tmpl'] = filename_tmpl
 
-        # prepare data
-        sequence_length = len(glob.glob(osp.join(img_dir, '*')))
-        img_dir_split = re.split(r'[\\/]', img_dir)
-        key = img_dir_split[-1]
-        lq_folder = reduce(osp.join, img_dir_split[:-1])
-        data = dict(
-            lq_path=lq_folder,
-            gt_path='',
-            key=key,
-            sequence_length=sequence_length)
+    # prepare data
+    sequence_length = len(glob.glob(osp.join(img_dir, '*')))
+    img_dir_split = re.split(r'[\\/]', img_dir)
+    key = img_dir_split[-1]
+    lq_folder = reduce(osp.join, img_dir_split[:-1])
+    data = dict(
+        lq_path=lq_folder,
+        gt_path='',
+        key=key,
+        sequence_length=sequence_length)
 
     # compose the pipeline
     test_pipeline = Compose(test_pipeline)
     data = test_pipeline(data)
     data = data['lq'].unsqueeze(0)  # in cpu
-    
-    cnt = 0
-    time_all = 0
+
     # forward the model
     with torch.no_grad():
-        if window_size > 0:  # sliding window framework
+        if window_size > 0:  # sliding-window framework
             data = pad_sequence(data, window_size)
             result = []
             for i in range(0, data.size(1) - 2 * (window_size // 2)):
                 data_i = data[:, i:i + window_size].to(device)
-                result.append(model(lq=data_i, test_mode=True)['output'].cpu())
+                out = model(lq=data_i, test_mode=True)['output'].cpu()
+                result.append(out)
             result = torch.stack(result, dim=1)
         else:  # recurrent framework
             if max_seq_len is None:
-                start = time.time()
-                
-                tile_size = 1024
-                tile_pad = 32
-                
-                lq=data.to(device)
-                batch, length, channel, height, width = lq.shape
-                output_height = height * 4
-                output_width = width * 4
-                output_shape = (batch, length, 9, output_height, output_width)
-                result = lq.new_zeros(output_shape).cpu()
-                tiles_x = math.ceil(width / tile_size)
-                tiles_y = math.ceil(height / tile_size)
-                
-                # loop over all tiles
-                for y in range(tiles_y):
-                    for x in range(tiles_x):
-                # extract tile from input image
-                        ofs_x = x * tile_size
-                        ofs_y = y * tile_size
-                # input tile area on total image
-                        input_start_x = ofs_x
-                        input_end_x = min(ofs_x + tile_size, width)
-                        input_start_y = ofs_y
-                        input_end_y = min(ofs_y + tile_size, height)
-
-                # input tile area on total image with padding
-                        input_start_x_pad = max(input_start_x - tile_pad, 0)
-                        input_end_x_pad = min(input_end_x + tile_pad, width)
-                        input_start_y_pad = max(input_start_y - tile_pad, 0)
-                        input_end_y_pad = min(input_end_y + tile_pad, height)
-
-                # input tile dimensions
-                        input_tile_width = input_end_x - input_start_x
-                        input_tile_height = input_end_y - input_start_y
-                        tile_idx = y * tiles_x + x + 1
-                        input_tile = lq[:, :, :, input_start_y_pad:input_end_y_pad, input_start_x_pad:input_end_x_pad]
-                        result_tile = model(lq=input_tile, test_mode=True)['output'].cpu()
-
-                # output tile area on total image
-                        output_start_x = input_start_x * 4
-                        output_end_x = input_end_x * 4
-                        output_start_y = input_start_y * 4
-                        output_end_y = input_end_y * 4
-
-                # output tile area without padding
-                        output_start_x_tile = (input_start_x - input_start_x_pad) * 4
-                        output_end_x_tile = output_start_x_tile + input_tile_width * 4
-                        output_start_y_tile = (input_start_y - input_start_y_pad) * 4
-                        output_end_y_tile = output_start_y_tile + input_tile_height * 4  
-
-                # put tile into output image
-                        result[:, :, :, output_start_y:output_end_y, output_start_x:output_end_x] = output_tile[:, :, :, output_start_y_tile:output_end_y_tile,
-                                                                       output_start_x_tile:output_end_x_tile]
-
-                
-                #result = model(
-                    #lq=data.to(device), test_mode=True)['output'].cpu()
-                
-                elapsed = (time.time() - start)
-                time_all += elapsed
-                cnt += 1
-                print('{:.4f}'.format(time_all))
-                print(cnt)
+                result = _forward_tiled(model, data, device, tile_size,
+                                        tile_pad)
             else:
                 result_list = []
-                for i in range(0, data.size(1), max_seq_len):              
-                    tile_size = 512
-                    tile_pad = 32
-                
-                    lq=data[:, i:i + max_seq_len].to(device)
-                    batch, length, channel, height, width = lq.shape
-                    output_height = height * 4
-                    output_width = width * 4
-                    output_shape = (batch, length, 9, output_height, output_width)
-                    result = lq.new_zeros(output_shape).cpu()
-                    tiles_x = math.ceil(width / tile_size)
-                    tiles_y = math.ceil(height / tile_size)
-                
-                # loop over all tiles
-                    for y in range(tiles_y):
-                        for x in range(tiles_x):
-                # extract tile from input image
-                            ofs_x = x * tile_size
-                            ofs_y = y * tile_size
-                # input tile area on total image
-                            input_start_x = ofs_x
-                            input_end_x = min(ofs_x + tile_size, width)
-                            input_start_y = ofs_y
-                            input_end_y = min(ofs_y + tile_size, height)
-
-                # input tile area on total image with padding
-                            input_start_x_pad = max(input_start_x - tile_pad, 0)
-                            input_end_x_pad = min(input_end_x + tile_pad, width)
-                            input_start_y_pad = max(input_start_y - tile_pad, 0)
-                            input_end_y_pad = min(input_end_y + tile_pad, height)
-
-                # input tile dimensions
-                            input_tile_width = input_end_x - input_start_x
-                            input_tile_height = input_end_y - input_start_y
-                            tile_idx = y * tiles_x + x + 1
-                            input_tile = lq[:, :, :, input_start_y_pad:input_end_y_pad, input_start_x_pad:input_end_x_pad]
-                            print(input_tile.shape)
-                            result_tile = model(lq=input_tile, test_mode=True)['output'].cpu()
-
-                # output tile area on total image
-                            output_start_x = input_start_x * 4
-                            output_end_x = input_end_x * 4
-                            output_start_y = input_start_y * 4
-                            output_end_y = input_end_y * 4
-
-                # output tile area without padding
-                            output_start_x_tile = (input_start_x - input_start_x_pad) * 4
-                            output_end_x_tile = output_start_x_tile + input_tile_width * 4
-                            output_start_y_tile = (input_start_y - input_start_y_pad) * 4
-                            output_end_y_tile = output_start_y_tile + input_tile_height * 4  
-
-                # put tile into output image
-                            result[:, :, :, output_start_y:output_end_y, output_start_x:output_end_x] = result_tile[:, :, :, output_start_y_tile:output_end_y_tile,
-                                                                       output_start_x_tile:output_end_x_tile]
-                    
-                    result_list.append(result)
+                for i in range(0, data.size(1), max_seq_len):
+                    seg = data[:, i:i + max_seq_len]
+                    result_list.append(
+                        _forward_tiled(model, seg, device, tile_size,
+                                       tile_pad))
                 result = torch.cat(result_list, dim=1)
 
+    # STDAN's IMFR head emits 9 channels (interlaced prev/cur/next RGB);
+    # the restored current frame is channels 3:6.
     return result[:, :, 3:6, :, :]
