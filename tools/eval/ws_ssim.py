@@ -3,7 +3,6 @@ import math
 import numpy as np
 import numpy
 import scipy.ndimage
-import torch
 from numpy import exp
 from numpy import pi
 
@@ -101,31 +100,23 @@ def compute_ssim(img_mat_1, img_mat_2):
 
     return ssim_map, index
 
-def ws_ssim(image1 , image2, ws):
-    image1_y = rgb2y(image1.data).numpy()
-    image2_y = rgb2y(image2.data).numpy()
+def ws_ssim(image1, image2, ws):
+    image1_y = rgb2y(image1)
+    image2_y = rgb2y(image2)
     map_ssim, MSSIM = compute_ssim(image1_y, image2_y)
     # ws = estws(map_ssim)
     wsssim = np.sum(map_ssim * ws) / ws.sum()
 
     return wsssim
-    
+
 
 def rgb2y(input_im):
-    input_im = np.array(input_im)
-    input_im = torch.tensor(input_im)
-    im_flat = input_im.contiguous().view(-1, 3).float()
-    mat = torch.Tensor([[0.257, 0, 0],
-                        [0.507, 0, 0],
-                        [0.098, 0, 0]])
-    bias = torch.Tensor([16.0, 0, 0])
-    mat = mat
-    bias = bias
-    temp = im_flat.mm(mat) + bias
-    out = temp.view(1, input_im.shape[0], input_im.shape[1], 3).permute(0, 3, 1, 2)
-    result = out[:, 0].permute(1, 2, 0)[:,:,0]
+    """ITU-R style luma: Y = 0.257 R + 0.507 G + 0.098 B + 16.
 
-    return result
+    Returns a (H, W) float array.
+    """
+    im = np.asarray(input_im, dtype=np.float64)
+    return 0.257 * im[..., 0] + 0.507 * im[..., 1] + 0.098 * im[..., 2] + 16.0
 
 
 

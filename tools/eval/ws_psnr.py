@@ -17,8 +17,7 @@ import os
 from glob import glob
 
 import numpy as np
-import torch
-from imageio import imread
+from imageio.v2 import imread
 
 from ws_ssim import ws_ssim
 
@@ -43,18 +42,18 @@ def getGlobalWSMSEValue(mx, my, mw):
 
 
 def rgb2y(input_im):
-    input_im = torch.tensor(np.array(input_im))
-    im_flat = input_im.contiguous().view(-1, 3).float()
-    mat = torch.Tensor([[0.257, 0, 0], [0.507, 0, 0], [0.098, 0, 0]])
-    bias = torch.Tensor([16.0, 0, 0])
-    temp = im_flat.mm(mat) + bias
-    out = temp.view(1, input_im.shape[0], input_im.shape[1], 3)
-    return out.permute(0, 3, 1, 2)[:, 0]
+    """ITU-R style luma: Y = 0.257 R + 0.507 G + 0.098 B + 16.
+
+    Returns a (H, W) float array (the WS-MSE uses only the Y channel).
+    """
+    im = np.asarray(input_im, dtype=np.float64)
+    y = 0.257 * im[..., 0] + 0.507 * im[..., 1] + 0.098 * im[..., 2] + 16.0
+    return y
 
 
 def ws_psnr(image1, image2, mw):
-    image1_y = rgb2y(image1.data).numpy()
-    image2_y = rgb2y(image2.data).numpy()
+    image1_y = rgb2y(image1)
+    image2_y = rgb2y(image2)
     ws_mse = getGlobalWSMSEValue(image1_y, image2_y, mw)
     try:
         return 20 * math.log10(255.0 / math.sqrt(ws_mse))
