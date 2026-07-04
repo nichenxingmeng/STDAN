@@ -14,9 +14,8 @@ from .formating import (Collect, FormatTrimap, GetMaskedImage, ImageToTensor,
                         ToTensor)
 from .generate_assistant import GenerateCoordinateAndCell, GenerateHeatmap
 from .loading import (GetSpatialDiscountMask, LoadImageFromFile,
-                      LoadImageFromFileList, LoadImageFromFileList_ope,
-                      LoadImageFromFileList_saliency, LoadMask,
-                      LoadPairedImageFromFile, RandomLoadResizeBg)
+                      LoadImageFromFileList, LoadImageFromFileList_saliency,
+                      LoadMask, LoadPairedImageFromFile, RandomLoadResizeBg)
 from .matlab_like_resize import MATLABLikeResize
 from .matting_aug import (CompositeFg, GenerateSeg, GenerateSoftSeg,
                           GenerateTrimap, GenerateTrimapWithDistTransform,
@@ -44,6 +43,5 @@ __all__ = [
     'CropLike', 'GenerateHeatmap', 'MATLABLikeResize', 'CopyValues',
     'Quantize', 'RandomBlur', 'RandomJPEGCompression', 'RandomNoise',
     'DegradationsWithShuffle', 'RandomResize', 'UnsharpMasking',
-    'RandomVideoCompression', 'CropSequence', 'LoadImageFromFileList_saliency',
-    'LoadImageFromFileList_ope'
+    'RandomVideoCompression', 'CropSequence', 'LoadImageFromFileList_saliency'
 ]

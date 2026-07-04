@@ -5,8 +5,8 @@
 # and the `saliency_folder` field below to point at your dataset.
 #
 # NOTE: the backbone reads a 4th LQ channel as the OPE positional cue
-# (`condition = lqs[:, :, 3]`). It is loaded by `LoadImageFromFileList_ope` from
-# precomputed OPE maps under `ope_folder` (see the pipelines below).
+# (`condition = lqs[:, :, 3]`). This channel is the cos-latitude map generated
+# on the fly by RescaleToZeroOne (no external files needed).
 exp_name = 'stdan_odi_360vsr'
 
 # model settings
@@ -32,12 +32,10 @@ test_dataset_type = 'SRODIMultipleGTDataset'
 train_pipeline = [
     dict(type='GenerateSegmentIndices', interval_list=[1]),
     dict(
-        # loads the LR frame + the precomputed OPE map as a 4th channel
-        # (the backbone reads it as `condition = lqs[:, :, 3]` for STCA).
-        # The OPE map is looked up at `{ope_folder}/{path_after 'LR_BIx4'}`.
-        type='LoadImageFromFileList_ope',
-        ope_folder='data/360Video/ope',
-        path_split_token='LR_BIx4',
+        # LR frames (RGB). The OPE cos-latitude channel that the backbone reads
+        # as `condition = lqs[:, :, 3]` (STCA) is appended on the fly by
+        # RescaleToZeroOne below, so no extra loader is needed here.
+        type='LoadImageFromFileList',
         io_backend='disk',
         key='lq',
         channel_order='rgb'),
@@ -64,10 +62,9 @@ train_pipeline = [
 test_pipeline = [
     dict(type='GenerateSegmentIndices', interval_list=[1]),
     dict(
-        type='LoadImageFromFileList_ope',
-        ope_folder='data/360Video/ope',
-        # path_split_token omitted -> use {clip}/{frame}.png to locate the
-        # OPE map (robust to arbitrary input dir names at test/demo time).
+        # LR frames (RGB). The OPE cos-latitude channel is appended on the fly
+        # by RescaleToZeroOne, so no extra loader is needed here.
+        type='LoadImageFromFileList',
         io_backend='disk',
         key='lq',
         channel_order='rgb'),
@@ -87,10 +84,9 @@ test_pipeline = [
 demo_pipeline = [
     dict(type='GenerateSegmentIndices', interval_list=[1]),
     dict(
-        type='LoadImageFromFileList_ope',
-        ope_folder='data/360Video/ope',
-        # path_split_token omitted -> use {clip}/{frame}.png to locate the
-        # OPE map (robust to arbitrary input dir names at test/demo time).
+        # LR frames (RGB). The OPE cos-latitude channel is appended on the fly
+        # by RescaleToZeroOne, so no extra loader is needed here.
+        type='LoadImageFromFileList',
         io_backend='disk',
         key='lq',
         channel_order='rgb'),

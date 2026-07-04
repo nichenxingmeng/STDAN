@@ -26,6 +26,13 @@ results/
 *.log
 log_*.txt
 
+# SLURM job logs / personal cluster job scripts
+*.err
+*.out
+slurm-*.out
+stdan_infer_hala_*
+tools/test_infer_hala.sbatch
+
 # Datasets & demo inputs
 data/
 LR_BIx4/

@@ -96,11 +96,25 @@ class RescaleToZeroOne:
 
     def __init__(self, keys):
         self.keys = keys
-        self.condition = np.array(get_condition(1024, 2048, 'cos_latitude').reshape((1024, 2048, 1)))
-        #self.condition = np.array(get_condition(270, 540, 'cos_latitude').reshape((270, 540, 1)))
-        #self.condition = np.array(get_condition(192, 360, 'cos_latitude').reshape((192, 360, 1)))
-        #self.condition = np.array(get_condition(180, 360, 'cos_latitude').reshape((180, 360, 1)))
-        self.latitude_map = compute_map_ws(1080, 2160)
+        # Position/latitude channels are generated on the fly from each frame's
+        # own size (see __call__). Cache them per (H, W) so we build each map
+        # only once.
+        self._condition_cache = {}
+        self._latitude_cache = {}
+
+    def _get_condition(self, h, w):
+        """cos-latitude OPE channel appended to the LQ frames (STCA)."""
+        if (h, w) not in self._condition_cache:
+            cond = get_condition(h, w, 'cos_latitude').reshape((h, w, 1))
+            self._condition_cache[(h, w)] = np.array(cond)
+        return self._condition_cache[(h, w)]
+
+    def _get_latitude(self, h, w):
+        """WS latitude weight channel appended to the GT frames (LSA loss)."""
+        if (h, w) not in self._latitude_cache:
+            self._latitude_cache[(h, w)] = np.expand_dims(
+                compute_map_ws(h, w), axis=2)
+        return self._latitude_cache[(h, w)]
 
     def __call__(self, results):
         """Call function.
@@ -112,13 +126,18 @@ class RescaleToZeroOne:
         Returns:
             dict: A dict containing the processed data and information.
         """
-        latitude = np.expand_dims(self.latitude_map, axis=2)
         for key in self.keys:
             if isinstance(results[key], list):
-                if key == 'lq':
-                    results[key] = [np.concatenate((v.astype(np.float32) / 255., self.condition), axis=2) for v in results[key]]
-                else:
-                    results[key] = [np.concatenate((v.astype(np.float32) / 255., latitude), axis=2) for v in results[key]]
+                out = []
+                for v in results[key]:
+                    v = v.astype(np.float32) / 255.
+                    h, w = v.shape[:2]
+                    if key == 'lq':
+                        extra = self._get_condition(h, w)
+                    else:
+                        extra = self._get_latitude(h, w)
+                    out.append(np.concatenate((v, extra), axis=2))
+                results[key] = out
             else:
                 results[key] = results[key].astype(np.float32) / 255.
         return results

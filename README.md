@@ -46,36 +46,51 @@ rather than files literally named STCA/IMFR):
 
 | Component | Where it lives |
 | --- | --- |
-| **STCA** — spatio-temporal continuous alignment (OPE-conditioned spatial DCN on top of second-order deformable temporal alignment) | `offset_conv` + `DCNv2Pack` in [`basicvsr_pp.py`](mmedit/models/backbones/sr_backbones/basicvsr_pp.py), applied in `propagate()`; the OPE positional cue is the 4th LQ channel read at `forward()` (`condition = lqs[:, :, 3]`), loaded by [`LoadImageFromFileList_ope`](mmedit/datasets/pipelines/loading.py) |
+| **STCA** — spatio-temporal continuous alignment (OPE-conditioned spatial DCN on top of second-order deformable temporal alignment) | `offset_conv` + `DCNv2Pack` in [`basicvsr_pp.py`](mmedit/models/backbones/sr_backbones/basicvsr_pp.py), applied in `propagate()`; the OPE positional cue is the 4th LQ channel read at `forward()` (`condition = lqs[:, :, 3]`), generated on the fly as a cos-latitude map by [`RescaleToZeroOne`](mmedit/datasets/pipelines/normalization.py) |
 | **IMFR** — interlaced multi-frame reconstruction | the 3-way interlaced path in `upsample()` of [`basicvsr_pp.py`](mmedit/models/backbones/sr_backbones/basicvsr_pp.py) (`reconstruction` takes `3*5*mid_channels`, `conv_last` emits `3*3` channels; prev/cur/next residual), consumed by `pred.chunk(3)` in the loss |
 | **LSA** — latitude + saliency weighted loss | [`charbonnier_loss`](mmedit/models/losses/pixelwise_loss.py) + saliency loader [`LoadImageFromFileList_saliency`](mmedit/datasets/pipelines/loading.py) |
 | ODV-SR dataset (multi-GT, recurrent) | [`mmedit/datasets/sr_ODI_multiple_gt_dataset.py`](mmedit/datasets/sr_ODI_multiple_gt_dataset.py) |
 | WS-PSNR / WS-SSIM evaluation | [`tools/eval/ws_psnr.py`](tools/eval/ws_psnr.py) |
 | Training config | [`configs/stdan_odi_360vsr.py`](configs/stdan_odi_360vsr.py) |
 
-> **On the OPE (omni-positional encoding) channel.** The STCA module needs a
+> **On the OPE (omni-positional encoding) channel.** The STCA module reads a
 > **4-channel LQ input** — RGB plus a single-channel OPE map that the backbone reads
-> as `condition = lqs[:, :, 3]`. The OPE map is the per-latitude ERP cosine weight
-> (the same weighting used by WS-PSNR), precomputed offline with
-> [`tools/gen_ope.py`](tools/gen_ope.py) and stored as grayscale PNGs mirroring the
-> LR folder layout under `data/360Video/ope/`. They are loaded and concatenated as
-> the 4th LQ channel by [`LoadImageFromFileList_ope`](mmedit/datasets/pipelines/loading.py),
-> already referenced in the config's pipelines. Unlike the training-only saliency
-> maps, **the OPE maps are needed for both training and inference** (STCA uses them
-> in the forward pass). Generate them once with:
->
-> ```bash
-> python tools/gen_ope.py --lr-dir data/360Video/training/LR_BIx4 --out-dir data/360Video/ope
-> python tools/gen_ope.py --lr-dir data/360Video/testing/LR       --out-dir data/360Video/ope
-> ```
+> as `condition = lqs[:, :, 3]`. This OPE map is the per-latitude ERP cosine weight
+> (the same weighting used by WS-PSNR) and is generated **on the fly** from each
+> frame's own size by [`RescaleToZeroOne`](mmedit/datasets/pipelines/normalization.py) —
+> no external files or preprocessing are needed. The GT frames similarly get a
+> latitude-weight channel appended for the LSA loss during training.
 
 ## Installation
 
-1. Install [PyTorch](https://pytorch.org).
-2. `pip install openmim`
-3. `mim install mmcv-full`
-4. `git clone <this-repo> && cd STDAN`
-5. `pip install -v -e .`
+STDAN builds on MMEditing 0.14, which needs the `mmcv-full` 1.x API (the CUDA
+deformable-convolution op used by STCA). The following combination is verified
+to run inference end-to-end on an NVIDIA A6000 (CUDA 11.8):
+
+```bash
+# Python 3.10 environment (conda / venv / uv all fine)
+pip install "numpy<2" opencv-python-headless imageio scipy addict "yapf==0.32.0"
+
+# PyTorch 2.0.1 + CUDA 11.8
+pip install torch==2.0.1 torchvision==0.15.2 --index-url https://download.pytorch.org/whl/cu118
+
+# prebuilt mmcv-full wheel for torch2.0 / cu118 (source builds are slow/fragile)
+pip install "mmcv-full==1.7.2" -f https://download.openmmlab.com/mmcv/dist/cu118/torch2.0.0/index.html
+
+# STDAN itself
+git clone <this-repo> && cd STDAN
+pip install -v -e .
+```
+
+Notes:
+- Use **Python 3.10** — the old torch / mmcv-full 1.x wheels are not published
+  for Python 3.13.
+- Keep **numpy < 2** — the mmcv wheel may pull in numpy 2.x, which breaks the
+  torch 2.0 ABI and the `np.bool8` usage in the old mmedit code.
+- Pin **yapf 0.32.0** — newer yapf ships a lib2to3 grammar cache that mmcv 1.7's
+  config module can fail to load (`EOFError: Ran out of input`).
+- For other CUDA/torch versions, pick the matching prebuilt wheel from the
+  [OpenMMLab index](https://download.openmmlab.com/mmcv/dist/index.html).
 
 ## Data preparation
 
@@ -89,12 +104,12 @@ data/360Video/
 │   └── HR/0000/0000.png ...          # ground-truth frames
 ├── validation/{LR,HR}/...
 ├── testing/{LR,HR}/...
-├── saliency/0000/0000.png ...        # grayscale saliency maps, mirror of HR/
-└── ope/0000/0000.png ...             # grayscale OPE maps, mirror of LR/
+└── saliency/0000/0000.png ...        # grayscale saliency maps, mirror of HR/ (training only)
 ```
 
-The `saliency_folder` / `ope_folder` (and the `path_split_token` for each) are set
-in the config's pipelines — change them there if your layout differs.
+The `saliency_folder` (and its `path_split_token`) is set in the training
+pipeline — change it there if your layout differs. The OPE position channel is
+generated on the fly, so it needs no folder.
 
 Frames are 0-indexed `NNNN.png`. If your frames are 1-indexed, shift them with
 [`tools/rename.py`](tools/rename.py):
@@ -143,32 +158,21 @@ sh tools/dist_train.sh configs/stdan_odi_360vsr.py ${NGPUS}
 ## Inference
 
 Inference takes a **folder of frames** (`0000.png`, `0001.png`, ...). Encoded
-video files (`.mp4`/`.mov`) are not supported, because STDAN needs the OPE channel,
-which is loaded per-frame from disk.
+video files (`.mp4`/`.mov`) are not supported — extract them to a frame folder
+first. The OPE position channel is added automatically, so there is no
+preprocessing step.
 
-1. **Generate the OPE maps** for your input frames (once):
+```bash
+python demo/restoration_video_demo.py \
+    configs/stdan_odi_360vsr.py \
+    stdan.ckpt \
+    ${INPUT_PATH} \
+    ${OUTPUT_PATH}
+```
 
-   ```bash
-   python tools/gen_ope.py --lr-dir ${INPUT_PARENT} --out-dir data/360Video/ope
-   ```
-
-   `${INPUT_PARENT}` is the folder that *contains* your clip sub-folder(s); the OPE
-   loader looks maps up by `{clip}/{frame}.png` under `ope_folder`
-   (`data/360Video/ope` by default, set in the config's `demo_pipeline`).
-
-2. **Run the model:**
-
-   ```bash
-   python demo/restoration_video_demo.py \
-       configs/stdan_odi_360vsr.py \
-       stdan.ckpt \
-       ${INPUT_PATH} \
-       ${OUTPUT_PATH}
-   ```
-
-   `${INPUT_PATH}` is the clip folder; `${OUTPUT_PATH}` is an output folder (or an
-   `.mp4` path to write a video). Use `--max-seq-len` to bound memory on long
-   sequences, and (if you extended the demo) `--tile-size` for very large frames.
+`${INPUT_PATH}` is the clip folder; `${OUTPUT_PATH}` is an output folder (or an
+`.mp4` path to write a video). Use `--max-seq-len` to bound memory on long
+sequences.
 
 The pretrained checkpoint `stdan.ckpt` is **not tracked in git** (~330 MB).
 Download it separately and place it at the repository root, or point the command at

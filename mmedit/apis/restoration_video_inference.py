@@ -2,11 +2,7 @@
 import glob
 import math
 import os.path as osp
-import re
-from functools import reduce
 
-import mmcv
-import numpy as np
 import torch
 
 from mmedit.datasets.pipelines import Compose
@@ -88,9 +84,8 @@ def restoration_video_inference(model,
     Args:
         model (nn.Module): The loaded model.
         img_dir (str): Directory of the input frames (one image per frame).
-            Video files (.mp4/.mov) are not supported by STDAN because the
-            model needs the precomputed OPE channel, which is only available
-            for on-disk frames via the data pipeline.
+            Encoded video files (.mp4/.mov) are not supported; extract them to
+            a folder of frames first.
         window_size (int): The window size used in sliding-window framework.
             A value <= 0 means using the recurrent framework.
         start_idx (int): The index of the first frame in the sequence.
@@ -116,15 +111,13 @@ def restoration_video_inference(model,
     else:
         test_pipeline = model.cfg.val_pipeline
 
-    # STDAN needs the OPE channel loaded from disk, so only frame folders
-    # (not encoded video files) are supported.
+    # only frame folders (not encoded video files) are supported.
     file_extension = osp.splitext(img_dir)[1]
     if file_extension in VIDEO_EXTENSIONS:
         raise ValueError(
-            'Video-file input is not supported: STDAN requires the '
-            'precomputed OPE channel, which is loaded per-frame from disk. '
-            'Please extract the video to a folder of frames (and generate '
-            'the matching OPE maps with tools/gen_ope.py) first.')
+            'Encoded video-file input is not supported. Please extract the '
+            'video to a folder of frames (0000.png, 0001.png, ...) and pass '
+            'that folder instead.')
 
     # the first element in the pipeline must be 'GenerateSegmentIndices'
     if test_pipeline[0]['type'] != 'GenerateSegmentIndices':
@@ -138,9 +131,12 @@ def restoration_video_inference(model,
 
     # prepare data
     sequence_length = len(glob.glob(osp.join(img_dir, '*')))
-    img_dir_split = re.split(r'[\\/]', img_dir)
-    key = img_dir_split[-1]
-    lq_folder = reduce(osp.join, img_dir_split[:-1])
+    # split into parent folder + clip name. Using dirname/basename (rather than
+    # splitting on the separator and re-joining) keeps a leading '/' on
+    # absolute paths.
+    img_dir = img_dir.rstrip('/\\')
+    key = osp.basename(img_dir)
+    lq_folder = osp.dirname(img_dir)
     data = dict(
         lq_path=lq_folder,
         gt_path='',

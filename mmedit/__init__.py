@@ -20,7 +20,10 @@ except ImportError:
 
 
 MMCV_MIN = '1.3.13'
-MMCV_MAX = '1.6'
+# Raised from 1.6 to 1.8: the only prebuilt mmcv-full wheels for recent
+# torch/CUDA (e.g. cu118 / torch2.0) are 1.7.x, and mmedit 0.14 runs fine
+# against them. This avoids a slow (and often failing) source build.
+MMCV_MAX = '1.8'
 
 mmcv_min_version = digit_version(MMCV_MIN)
 mmcv_max_version = digit_version(MMCV_MAX)
