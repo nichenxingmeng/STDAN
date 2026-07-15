@@ -5,6 +5,7 @@ Official code for the AAAI 2026 paper
 
 > Hongyu An, Xinfeng Zhang, Shijie Zhao, Li Zhang, Ruiqin Xiong.
 > *University of Chinese Academy of Sciences · ByteDance Inc. · Peking University.*
+> [[Paper (arXiv)]](https://arxiv.org/abs/2410.11506)
 
 Omnidirectional videos (ODVs / 360° videos) suffer from spatial projection
 distortions and temporal flickering that make general video super-resolution (VSR)
