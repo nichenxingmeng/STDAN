@@ -1,11 +1,30 @@
+<div align="center">
+
 # STDAN: Spatio-Temporal Distortion Aware Omnidirectional Video Super-Resolution
 
-Official code for the AAAI 2026 paper
-**"Spatio-Temporal Distortion Aware Omnidirectional Video Super-Resolution"**.
+### 🎉 Accepted at AAAI 2026
 
-> Hongyu An, Xinfeng Zhang, Shijie Zhao, Li Zhang, Ruiqin Xiong.
-> *University of Chinese Academy of Sciences · ByteDance Inc. · Peking University.*
-> [[Paper (arXiv)]](https://arxiv.org/abs/2410.11506)
+<div style="line-height: 1;">
+  <a href="https://arxiv.org/abs/2410.11506" target="_blank" style="margin: 2px;">
+    <img alt="arXiv" src="https://img.shields.io/badge/arXiv-2410.11506-b31b1b.svg" style="display: inline-block; vertical-align: middle;"/>
+  </a>
+</div>
+
+<h4>
+
+[Hongyu An](https://nichenxingmeng.github.io/)<sup>1</sup>,
+[Xinfeng Zhang](https://people.ucas.ac.cn/~csxfzhang)<sup>1</sup>,
+[Shijie Zhao](https://www.linkedin.com/in/shijie-zhao-bb017a110/)<sup>2</sup>,
+[Li Zhang](https://scholar.google.com/citations?user=8G5-2OMAAAAJ&hl=en)<sup>2</sup>,
+[Ruiqin Xiong](https://scholar.google.com/citations?user=46Rur-YAAAAJ&hl=en)<sup>3</sup>
+
+<sup>1</sup>University of Chinese Academy of Sciences &nbsp;&nbsp; <sup>2</sup>ByteDance Inc. &nbsp;&nbsp; <sup>3</sup>Peking University
+
+</h4>
+
+</div>
+
+<hr>
 
 Omnidirectional videos (ODVs / 360° videos) suffer from spatial projection
 distortions and temporal flickering that make general video super-resolution (VSR)
