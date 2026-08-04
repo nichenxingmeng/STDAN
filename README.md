@@ -40,15 +40,6 @@ spatio-temporal alignment and reconstruction, comprising:
 The codebase is built on [MMEditing](https://github.com/open-mmlab/mmediting) /
 [BasicVSR++](https://arxiv.org/abs/2104.13371) (see [Acknowledgements](#acknowledgements)).
 
-## Demo
-
-<p align="center">
-  <img src="assets/0.gif" width="45%"/>
-  <img src="assets/7.gif" width="45%"/><br/>
-  <img src="assets/8.gif" width="45%"/>
-  <img src="assets/14.gif" width="45%"/>
-</p>
-
 ## ODV-SR dataset
 
 The proposed ODV-SR **training** set has two parts: 210 sequences following
