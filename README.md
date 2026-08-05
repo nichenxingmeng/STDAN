@@ -44,6 +44,14 @@ The codebase is built on [MMEditing](https://github.com/open-mmlab/mmediting) /
   <img src="assets/framework.png" width="100%"/>
 </p>
 
+## Results
+
+Qualitative ×4 comparison on the *ODV-SR* dataset (ERP, fisheye, and perspective):
+
+<p align="center">
+  <img src="assets/results.png" width="100%"/>
+</p>
+
 ## ODV-SR dataset
 
 The proposed ODV-SR **training** set has two parts: 210 sequences following
