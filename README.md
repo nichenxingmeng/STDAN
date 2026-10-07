@@ -188,7 +188,7 @@ preprocessing step.
 ```bash
 python demo/restoration_video_demo.py \
     configs/stdan_odi_360vsr.py \
-    stdan.ckpt \
+    stdan.pth \
     ${INPUT_PATH} \
     ${OUTPUT_PATH}
 ```
@@ -197,7 +197,7 @@ python demo/restoration_video_demo.py \
 `.mp4` path to write a video). Use `--max-seq-len` to bound memory on long
 sequences.
 
-The pretrained checkpoint `stdan.ckpt` is **not tracked in git** (~330 MB).
+The pretrained checkpoint `stdan.pth` is **not tracked in git** (~330 MB).
 Download it separately and place it at the repository root, or point the command at
 your own path.
 
